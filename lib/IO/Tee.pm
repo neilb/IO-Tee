@@ -13,17 +13,33 @@ use IO::File;
 
 our $VERSION = '0.65';
 
+# Internal sub to handle handles.
+#
+# The idea is to manage the first (and only) argument
+# to understand what it is:
+# - if it is a plain string create a file with that name
+# - if it is an array ref create the file with such parameters
+# - if it is a glob convert to an IO::Handle instance
+# - if it is something return it
+#
+sub _handle
+{
+    my ( $arg ) = @_;
+
+    return ! ref( $arg ) ? IO::File->new( $arg )
+        : ref( $arg ) eq 'ARRAY' ? IO::File->new( @$arg )
+        : ref( $arg ) eq 'GLOB' ? bless  $arg , 'IO::Handle'
+        :  $arg  or return undef;
+}
+
+
 # Constructor -- bless array reference into our class
 
 sub new
 {
     my $class = shift;
     my $self = gensym;
-    @{*$self} = map {
-        ! ref($_) ? IO::File->new($_)
-        : ref($_) eq 'ARRAY' ? IO::File->new(@$_)
-        : ref($_) eq 'GLOB' ? bless $_, 'IO::Handle'
-        : $_ or return undef } @_;
+    @{*$self} = map { _handle $_ } @_;
     bless $self, $class;
     tie *$self, $class, $self;
     return $self;
