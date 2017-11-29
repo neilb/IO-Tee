@@ -52,6 +52,18 @@ sub handles
     @{*{$_[0]}};
 }
 
+
+# Add an handle (or something else)
+# to the array of handles already known
+# to this tee.
+#
+# Is this concurrent safe?
+sub add
+{
+    my ( $self ) = shift;
+    for ( @_ ) { push @{*$self}, _handle( $_ ); }
+}
+
 # Proxy routines for various IO::Handle and IO::File operations
 
 sub _method_return_success
