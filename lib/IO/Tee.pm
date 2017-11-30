@@ -380,8 +380,9 @@ subsequent output multiplexing fails.
     use IO::Tee;
     use IO::File;
 
-    my $tee = new IO::Tee(\*STDOUT,
-        new IO::File(">tt1.out"), ">tt2.out");
+    my $tee = IO::Tee->new( \*STDOUT,
+                           IO::File->new(">tt1.out"),
+                           ">tt2.out");
 
     $tee->add( IO::File->new( 'tt3.out', 'w') );
     print join(' ', $tee->handles), "\n";
@@ -390,7 +391,7 @@ subsequent output multiplexing fails.
     for (1..10) { $tee->print($_, "\n") }
     $tee->flush;
 
-    $tee = new IO::Tee('</etc/passwd', \*STDOUT);
+    $tee = IO::Tee->new('</etc/passwd', \*STDOUT);
     my @lines = <$tee>;
     print scalar(@lines);
 
