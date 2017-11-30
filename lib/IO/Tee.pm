@@ -383,6 +383,7 @@ subsequent output multiplexing fails.
     my $tee = new IO::Tee(\*STDOUT,
         new IO::File(">tt1.out"), ">tt2.out");
 
+    $tee->add( IO::File->new( 'tt3.out', 'w') );
     print join(' ', $tee->handles), "\n";
 
     for (1..10) { print $tee $_, "\n" }
