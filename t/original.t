@@ -7,7 +7,7 @@ BEGIN { $^W = 1 }
 ######################### We start with some black magic to print on failure.
 
 my $loaded;
-BEGIN { $| = 1; print "1..27\n"; }
+BEGIN { $| = 1; print "1..31\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use IO::Tee;
 use IO::File;
@@ -93,6 +93,48 @@ $t3 and ($t3->autoflush(1), $t3->flush)
     print((($contents eq $expected) ? '' : 'not '), "ok 26\n");
 }
 
+# test add method
+{
+    my $tee = IO::Tee->new( '>test.1' );
+    my $expected = 'Testing add';
+
+    my $num_lines   = 5;
+    my $added_lines = 10;
+    print {$tee} "$expected\n" for ( 1..$num_lines );
+
+    $tee->add( '>test.2' );
+    print {$tee} "$expected\n" for( 1..$added_lines );
+    $tee->close;
+    my $fh = IO::File->new( '<test.1' );
+    my $ok_original;
+    my @src_lines = $fh->getlines;
+    $fh->close;
+
+    $fh = IO::File->new( '<test.2' );
+    my @added_lines = $fh->getlines;
+    $fh->close;
+
+    my $ok_lines = ( $#src_lines - $#added_lines ) == $added_lines;
+    print ( ( $ok_lines ? 'not ' : '' ), "ok 27\n" );
+
+    $ok_lines = 1;
+    for ( @added_lines ){
+        undef $ok_lines if ( $_ !~ /^$expected/ );
+    }
+    print (( $ok_lines ? 'not ' : '' ), "ok 28\n");
+
+    $ok_lines = 1;
+    for ( @src_lines ){
+        undef $ok_lines if ( $_ !~ /^$expected/ );
+    }
+    print (( $ok_lines ? 'not ' : '' ), "ok 29\n");
+
+
+    $ok_lines = 1;
+    undef $ok_lines if ( scalar @src_lines != ( $num_lines + $added_lines ) || scalar @added_lines != $added_lines );
+    print (( $ok_lines ? 'not ' : '' ), "ok 30\n");
+}
+
 undef $testfile2; close TEST3; undef $t3;
 5 == unlink 'test.1', 'test.2', 'test.3', 'test.4', 'test.5'
-    and print "ok 27\n" or print "not ok 27\n";
+    and print "ok 31\n" or print "not ok 31\n";

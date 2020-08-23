@@ -13,17 +13,33 @@ use IO::File;
 
 our $VERSION = '0.65';
 
+# Internal sub to handle handles.
+#
+# The idea is to manage the first (and only) argument
+# to understand what it is:
+# - if it is a plain string create a file with that name
+# - if it is an array ref create the file with such parameters
+# - if it is a glob convert to an IO::Handle instance
+# - if it is something return it
+#
+sub _handle
+{
+    my ( $arg ) = @_;
+
+    return ! ref( $arg ) ? IO::File->new( $arg )
+        : ref( $arg ) eq 'ARRAY' ? IO::File->new( @$arg )
+        : ref( $arg ) eq 'GLOB' ? bless  $arg , 'IO::Handle'
+        :  $arg  or return undef;
+}
+
+
 # Constructor -- bless array reference into our class
 
 sub new
 {
     my $class = shift;
     my $self = gensym;
-    @{*$self} = map {
-        ! ref($_) ? IO::File->new($_)
-        : ref($_) eq 'ARRAY' ? IO::File->new(@$_)
-        : ref($_) eq 'GLOB' ? bless $_, 'IO::Handle'
-        : $_ or return undef } @_;
+    @{*$self} = map { _handle $_ } @_;
     bless $self, $class;
     tie *$self, $class, $self;
     return $self;
@@ -34,6 +50,18 @@ sub new
 sub handles
 {
     @{*{$_[0]}};
+}
+
+
+# Add an handle (or something else)
+# to the array of handles already known
+# to this tee.
+#
+# Is this concurrent safe?
+sub add
+{
+    my ( $self ) = shift;
+    for ( @_ ) { push @{*$self}, _handle( $_ ); }
 }
 
 # Proxy routines for various IO::Handle and IO::File operations
@@ -352,16 +380,18 @@ subsequent output multiplexing fails.
     use IO::Tee;
     use IO::File;
 
-    my $tee = new IO::Tee(\*STDOUT,
-        new IO::File(">tt1.out"), ">tt2.out");
+    my $tee = IO::Tee->new( \*STDOUT,
+                           IO::File->new(">tt1.out"),
+                           ">tt2.out");
 
+    $tee->add( IO::File->new( 'tt3.out', 'w') );
     print join(' ', $tee->handles), "\n";
 
     for (1..10) { print $tee $_, "\n" }
     for (1..10) { $tee->print($_, "\n") }
     $tee->flush;
 
-    $tee = new IO::Tee('</etc/passwd', \*STDOUT);
+    $tee = IO::Tee->new('</etc/passwd', \*STDOUT);
     my @lines = <$tee>;
     print scalar(@lines);
 
